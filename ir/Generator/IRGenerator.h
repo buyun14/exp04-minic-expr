@@ -128,6 +128,36 @@ protected:
     /// @brief AST节点运算符与动作函数关联的映射表
     std::unordered_map<ast_operator_type, ast2ir_handler_t> ast2ir_handlers;
 
+    /// @brief 加法运算的IR生成
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_add(ast_node * node);
+
+    /// @brief 减法运算的IR生成
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_sub(ast_node * node);
+
+    /// @brief 乘法运算的IR生成
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_mul(ast_node * node);
+
+    /// @brief 除法运算的IR生成
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_div(ast_node * node);
+
+    /// @brief 取模运算的IR生成
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_mod(ast_node * node);
+
+    /// @brief 一元取负运算的IR生成
+    /// @param node AST节点
+    /// @return 翻译是否成功，true：成功，false：失败
+    bool ir_neg(ast_node * node);
+
 private:
     /// @brief 抽象语法树的根
     ast_node * root;

@@ -47,6 +47,10 @@ IRGenerator::IRGenerator(ast_node * _root, Module * _module) : root(_root), modu
     /* 表达式运算， 加减 */
     ast2ir_handlers[ast_operator_type::AST_OP_SUB] = &IRGenerator::ir_sub;
     ast2ir_handlers[ast_operator_type::AST_OP_ADD] = &IRGenerator::ir_add;
+    ast2ir_handlers[ast_operator_type::AST_OP_MUL] = &IRGenerator::ir_mul;
+    ast2ir_handlers[ast_operator_type::AST_OP_DIV] = &IRGenerator::ir_div;
+    ast2ir_handlers[ast_operator_type::AST_OP_MOD] = &IRGenerator::ir_mod;
+    ast2ir_handlers[ast_operator_type::AST_OP_NEG] = &IRGenerator::ir_neg;
 
     /* 语句 */
     ast2ir_handlers[ast_operator_type::AST_OP_ASSIGN] = &IRGenerator::ir_assign;
@@ -611,6 +615,108 @@ bool IRGenerator::ir_variable_declare(ast_node * node)
     // TODO 这里可强化类型等检查
 
     node->val = module->newVarValue(node->sons[0]->type, node->sons[1]->name);
+
+    return true;
+}
+
+/// @brief 乘法运算的IR生成
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_mul(ast_node * node)
+{
+    // 获取左操作数
+    ast_node * left = ir_visit_ast_node(node->sons[0]);
+    if (!left) {
+        return false;
+    }
+
+    // 获取右操作数
+    ast_node * right = ir_visit_ast_node(node->sons[1]);
+    if (!right) {
+        return false;
+    }
+
+    // 创建乘法指令
+    Instruction * inst = new BinaryInst(Instruction::MUL, left->val, right->val);
+    module->addInstruction(inst);
+
+    // 设置结果
+    node->val = inst->getResult();
+
+    return true;
+}
+
+/// @brief 除法运算的IR生成
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_div(ast_node * node)
+{
+    // 获取左操作数
+    ast_node * left = ir_visit_ast_node(node->sons[0]);
+    if (!left) {
+        return false;
+    }
+
+    // 获取右操作数
+    ast_node * right = ir_visit_ast_node(node->sons[1]);
+    if (!right) {
+        return false;
+    }
+
+    // 创建除法指令
+    Instruction * inst = new BinaryInst(Instruction::DIV, left->val, right->val);
+    module->addInstruction(inst);
+
+    // 设置结果
+    node->val = inst->getResult();
+
+    return true;
+}
+
+/// @brief 取模运算的IR生成
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_mod(ast_node * node)
+{
+    // 获取左操作数
+    ast_node * left = ir_visit_ast_node(node->sons[0]);
+    if (!left) {
+        return false;
+    }
+
+    // 获取右操作数
+    ast_node * right = ir_visit_ast_node(node->sons[1]);
+    if (!right) {
+        return false;
+    }
+
+    // 创建取模指令
+    Instruction * inst = new BinaryInst(Instruction::MOD, left->val, right->val);
+    module->addInstruction(inst);
+
+    // 设置结果
+    node->val = inst->getResult();
+
+    return true;
+}
+
+/// @brief 一元取负运算的IR生成
+/// @param node AST节点
+/// @return 翻译是否成功，true：成功，false：失败
+bool IRGenerator::ir_neg(ast_node * node)
+{
+    // 获取操作数
+    ast_node * operand = ir_visit_ast_node(node->sons[0]);
+    if (!operand) {
+        return false;
+    }
+
+    // 创建取负指令
+    Instruction * inst = new UnaryInst(Instruction::NEG, operand->val);
+    module->addInstruction(inst);
+
+    // 设置结果
+    node->val = inst->getResult();
 
     return true;
 }

@@ -49,7 +49,7 @@ void yyerror(char * msg);
 %token T_COMMA
 
 // 运算符
-%token T_ASSIGN T_SUB T_ADD
+%token T_ASSIGN T_SUB T_ADD T_MUL T_DIV T_MOD
 
 // 非终结符
 // %type指定文法的非终结符号，<>可指定文法属性
@@ -62,10 +62,10 @@ void yyerror(char * msg);
 %type <node> Expr
 %type <node> LVal
 %type <node> VarDecl VarDeclExpr VarDef
-%type <node> AddExp UnaryExp PrimaryExp
+%type <node> AddExp MulExp UnaryExp PrimaryExp
 %type <node> RealParamList
 %type <type> BasicType
-%type <op_class> AddOp
+%type <op_class> AddOp MulOp
 %%
 
 // 编译单元可包含若干个函数与全局变量定义。要在语义分析时检查main函数存在
@@ -252,33 +252,30 @@ Statement : T_RETURN Expr T_SEMICOLON {
 	;
 
 // 表达式文法 expr : AddExp
-// 表达式目前只支持加法与减法运算
 Expr : AddExp {
 		// 直接传递给归约后的节点
 		$$ = $1;
 	}
 	;
 
-// 加减表达式文法：addExp: unaryExp (addOp unaryExp)*
-// 由于bison不支持用闭包表达，因此需要拆分成左递归的形式
-// 改造后的左递归文法：
-// addExp : unaryExp | unaryExp addOp unaryExp | addExp addOp unaryExp
-AddExp : UnaryExp {
-		// 一目表达式
-
-		// 直接传递到归约后的节点
+// 加减表达式文法：addExp: mulExp (addOp mulExp)*
+AddExp : MulExp {
+		// 乘除表达式
 		$$ = $1;
 	}
-	| UnaryExp AddOp UnaryExp {
-		// 两个一目表达式的加减运算
-
-		// 创建加减运算节点，其孩子为两个一目表达式节点
+	| AddExp AddOp MulExp {
+		// 左递归形式可通过加减连接多个乘除表达式
 		$$ = create_contain_node(ast_operator_type($2), $1, $3);
 	}
-	| AddExp AddOp UnaryExp {
-		// 左递归形式可通过加减连接多个一元表达式
+	;
 
-		// 创建加减运算节点，孩子为AddExp($1)和UnaryExp($3)
+// 乘除表达式文法：mulExp: unaryExp (mulOp unaryExp)*
+MulExp : UnaryExp {
+		// 一元表达式
+		$$ = $1;
+	}
+	| MulExp MulOp UnaryExp {
+		// 左递归形式可通过乘除连接多个一元表达式
 		$$ = create_contain_node(ast_operator_type($2), $1, $3);
 	}
 	;
@@ -292,45 +289,39 @@ AddOp: T_ADD {
 	}
 	;
 
-// 目前一元表达式可以为基本表达式、函数调用，其中函数调用的实参可有可无
-// 其文法为：unaryExp: primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN
-// 由于bison不支持？表达，因此变更后的文法为：
-// unaryExp: primaryExp | T_ID T_L_PAREN T_R_PAREN | T_ID T_L_PAREN realParamList T_R_PAREN
-UnaryExp : PrimaryExp {
-		// 基本表达式
+// 乘除运算符
+MulOp: T_MUL {
+		$$ = (int)ast_operator_type::AST_OP_MUL;
+	}
+	| T_DIV {
+		$$ = (int)ast_operator_type::AST_OP_DIV;
+	}
+	| T_MOD {
+		$$ = (int)ast_operator_type::AST_OP_MOD;
+	}
+	;
 
-		// 传递到归约后的UnaryExp上
+// 一元表达式文法：unaryExp: T_SUB unaryExp | primaryExp | T_ID T_L_PAREN realParamList? T_R_PAREN
+UnaryExp : T_SUB UnaryExp {
+		// 单目求负运算
+		$$ = create_contain_node(ast_operator_type::AST_OP_NEG, $2);
+	}
+	| PrimaryExp {
+		// 基本表达式
 		$$ = $1;
 	}
 	| T_ID T_L_PAREN T_R_PAREN {
 		// 没有实参的函数调用
-
-		// 创建函数调用名终结符节点
 		ast_node * name_node = ast_node::New(std::string($1.id), $1.lineno);
-
-		// 对于字符型字面量的字符串空间需要释放，因词法用到了strdup进行了字符串复制
 		free($1.id);
-
-		// 实参列表
 		ast_node * paramListNode = nullptr;
-
-		// 创建函数调用节点，其孩子为被调用函数名和实参，实参为空，但函数内部会创建实参列表节点，无孩子
 		$$ = create_func_call(name_node, paramListNode);
-
 	}
 	| T_ID T_L_PAREN RealParamList T_R_PAREN {
 		// 含有实参的函数调用
-
-		// 创建函数调用名终结符节点
 		ast_node * name_node = ast_node::New(std::string($1.id), $1.lineno);
-
-		// 对于字符型字面量的字符串空间需要释放，因词法用到了strdup进行了字符串复制
 		free($1.id);
-
-		// 实参列表
 		ast_node * paramListNode = $3;
-
-		// 创建函数调用节点，其孩子为被调用函数名和实参，实参不为空
 		$$ = create_func_call(name_node, paramListNode);
 	}
 	;
